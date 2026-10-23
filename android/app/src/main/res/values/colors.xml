@@ -1,0 +1,31 @@
+<resources>
+    <!-- Pastel Palette -->
+    <color name="mint_light">#E8F8F2</color>
+    <color name="mint_primary">#A8E6CF</color>
+    <color name="mint_dark">#78C4A8</color>
+    
+    <color name="sky_light">#EFF7FF</color>
+    <color name="sky_primary">#BAE1FF</color>
+    <color name="sky_dark">#79B4E3</color>
+    
+    <color name="peach_light">#FFF4E8</color>
+    <color name="peach_primary">#FFDFBA</color>
+    <color name="peach_dark">#F2B57B</color>
+    
+    <color name="lavender_light">#F5F0FF</color>
+    <color name="lavender_primary">#DED2F9</color>
+    <color name="lavender_dark">#AF95E6</color>
+    
+    <color name="lemon_light">#FFFFE8</color>
+    <color name="lemon_primary">#FFFFBA</color>
+    <color name="lemon_dark">#D6D665</color>
+
+    <color name="rose_light">#FFF0F2</color>
+    <color name="rose_primary">#FFB3BA</color>
+    <color name="rose_dark">#F47C88</color>
+    
+    <color name="bg_gradient_start">#F9FBFC</color>
+    <color name="bg_gradient_end">#EBF2F7</color>
+    <color name="text_slate_dark">#2C3E50</color>
+    <color name="text_slate_subtle">#64748B</color>
+</resources>

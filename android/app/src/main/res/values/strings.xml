@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Pop &amp; Flow</string>
+    <string name="tagline">Relaxing Pastel Bubble Pop</string>
+    <string name="mode_flow">Flow Mode</string>
+    <string name="mode_flow_desc">Endless zen, no timer, no pressure</string>
+    <string name="mode_rush">Combo Rush</string>
+    <string name="mode_rush_desc">30-second speed challenge &amp; bonus bubbles</string>
+    <string name="settings">Settings</string>
+    <string name="sound_effects">Sound Effects</string>
+    <string name="haptics">Haptic Feedback</string>
+    <string name="reduced_motion">Reduced Motion</string>
+    <string name="resume">Resume</string>
+    <string name="restart">Restart</string>
+    <string name="home">Main Menu</string>
+    <string name="game_over">Time\'s Up!</string>
+    <string name="personal_best">New Personal Best!</string>
+</resources>
