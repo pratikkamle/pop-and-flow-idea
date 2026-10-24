@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
                             Screen.HOME -> HomeScreen(
                                 bestFlowScore = viewModel.getBestScore(GameMode.FLOW),
                                 bestRushScore = viewModel.getBestScore(GameMode.COMBO_RUSH),
+                                bestReflexScore = viewModel.getBestScore(GameMode.REFLEX),
                                 lifetimePops = viewModel.getLifetimePops(),
                                 onStartGame = { mode ->
                                     viewModel.selectMode(mode)

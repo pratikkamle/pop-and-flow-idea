@@ -1,6 +1,6 @@
 {
   "name": "Pop & Flow - Casual Android Bubble Game",
-  "description": "A relaxing, colorful pastel bubble-popping casual game built with Kotlin & Jetpack Compose, featuring Flow Mode, Combo Rush, glossy physics, and an interactive preview & APK export suite.",
+  "description": "A relaxing, colorful pastel bubble-popping casual game built with Kotlin & Jetpack Compose, featuring Flow Mode, Combo Rush, Reflex Protocol, glossy physics, and an interactive preview & APK export suite.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

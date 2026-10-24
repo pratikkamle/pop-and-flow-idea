@@ -181,6 +181,133 @@ class SoundEngine {
     });
   }
 
+  playFail(soundEnabled: boolean, hapticEnabled: boolean, volume = 0.8) {
+    if (hapticEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([60, 40, 120]);
+      } catch {
+        // Safe fallback
+      }
+    }
+
+    if (!soundEnabled || volume <= 0) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(75, now + 0.32);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, now);
+    filter.frequency.exponentialRampToValueAtTime(160, now + 0.32);
+
+    const masterVol = Math.max(0.01, Math.min(1, volume));
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.28 * masterVol, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.33);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.34);
+  }
+
+  playComboMilestone(milestone: number, soundEnabled: boolean, hapticEnabled: boolean, volume = 0.8) {
+    if (hapticEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([18, 30, 24]);
+      } catch {
+        // Safe fallback
+      }
+    }
+
+    if (!soundEnabled || volume <= 0) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const masterVol = Math.max(0.01, Math.min(1, volume));
+    // Ascending arpeggio tailored for combo tier
+    const baseFreq = milestone >= 15 ? 880.0 : milestone >= 10 ? 659.25 : 523.25;
+    const notes = [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 2.0];
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      const startTime = now + idx * 0.05;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2600, startTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(0.24 * masterVol, startTime + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.24);
+    });
+  }
+
+  playTargetShift(soundEnabled: boolean, hapticEnabled: boolean, volume = 0.8) {
+    if (hapticEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([25, 40, 30]);
+      } catch {
+        // Safe fallback
+      }
+    }
+
+    if (!soundEnabled || volume <= 0) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const masterVol = Math.max(0.01, Math.min(1, volume));
+    const notes = [587.33, 880.0]; // D5 then A5 alert ding
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      const startTime = now + idx * 0.06;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2500, startTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(0.22 * masterVol, startTime + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.18);
+    });
+  }
+
   private stopAmbient() {
     this.ambientOscs.forEach((osc) => {
       try {

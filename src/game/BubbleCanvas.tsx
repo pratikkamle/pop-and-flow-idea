@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Bubble, BubbleType, GameMode, GameSettings, GameStats, PopParticle, PopRipple, FloatingScore } from './types';
+import { Bubble, BubbleType, GameMode, GameSettings, GameStats, PopParticle, PopRipple, FloatingScore, TargetColor } from './types';
 import { soundEngine } from './audio';
-import { getBubbleStyles } from './themes';
+import { getBubbleStyles, TARGET_COLORS, TARGET_COLOR_CONFIGS, DANGER_BUBBLE_STYLE } from './themes';
 
 
 
@@ -71,6 +71,12 @@ const BUBBLE_STYLES: Record<BubbleType, { base: string; light: string; glow: str
     glow: 'rgba(255, 64, 129, 0.65)',
     ring: 'rgba(245, 0, 87, 0.85)',
   },
+  danger: {
+    base: '#EF4444',
+    light: '#FEE2E2',
+    glow: 'rgba(239, 68, 68, 0.65)',
+    ring: 'rgba(185, 28, 28, 0.9)',
+  },
 };
 
 export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
@@ -107,41 +113,80 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
 
   const createBubble = (width: number, height: number, initialScatter = false): Bubble => {
     const isComboRush = mode === 'combo_rush';
+    const isReflex = mode === 'reflex';
     const roll = Math.random();
     let type: BubbleType = 'mint';
+    let isDanger = false;
 
-    // Occasional bonus bubbles
-    if (roll < 0.05 && isComboRush) {
-      type = 'time_bonus'; // 5% chance in Combo Rush (+3 seconds)
-    } else if (roll < 0.09) {
-      type = 'rainbow_bonus'; // 4% chance (high score 50 pts + prismatic burst)
-    } else if (roll < 0.13) {
-      type = 'multiplier_star'; // 4% chance (doubles combo multiplier boost)
-    } else if (roll < 0.28) {
-      type = 'mint';
-    } else if (roll < 0.43) {
-      type = 'sky';
-    } else if (roll < 0.58) {
-      type = 'peach';
-    } else if (roll < 0.73) {
-      type = 'lavender';
-    } else if (roll < 0.88) {
-      type = 'lemon';
+    if (isReflex) {
+      // Escalating difficulty curve over 60s run:
+      // - Phase 1 (60s-40s): 14% danger bubbles, 44% target color (gentle calibration)
+      // - Phase 2 (40s-20s): 18% danger bubbles, 42% target color (accelerated focus)
+      // - Phase 3 (20s-0s): 22% danger bubbles, 40% target color (climax reflex test)
+      const remaining = statsRef.current.remainingTime ?? 60;
+      const dangerThreshold = remaining > 40 ? 0.14 : remaining > 20 ? 0.18 : 0.22;
+      const targetThreshold = dangerThreshold + (remaining > 40 ? 0.44 : remaining > 20 ? 0.42 : 0.40);
+
+      const currentTarget: TargetColor = (statsRef.current.targetColor as TargetColor) || 'mint';
+      if (roll < dangerThreshold) {
+        type = 'danger';
+        isDanger = true;
+      } else if (roll < targetThreshold) {
+        type = currentTarget;
+      } else {
+        const otherColors = TARGET_COLORS.filter((c) => c !== currentTarget);
+        type = otherColors[Math.floor(Math.random() * otherColors.length)];
+      }
     } else {
-      type = 'rose';
+      // Occasional bonus bubbles in Flow & Combo Rush
+      if (roll < 0.05 && isComboRush) {
+        type = 'time_bonus'; // 5% chance in Combo Rush (+3 seconds)
+      } else if (roll < 0.09) {
+        type = 'rainbow_bonus'; // 4% chance (high score 50 pts + prismatic burst)
+      } else if (roll < 0.13) {
+        type = 'multiplier_star'; // 4% chance (doubles combo multiplier boost)
+      } else if (roll < 0.28) {
+        type = 'mint';
+      } else if (roll < 0.43) {
+        type = 'sky';
+      } else if (roll < 0.58) {
+        type = 'peach';
+      } else if (roll < 0.73) {
+        type = 'lavender';
+      } else if (roll < 0.88) {
+        type = 'lemon';
+      } else {
+        type = 'rose';
+      }
     }
 
     const baseRadius =
-      type === 'rainbow_bonus'
+      type === 'danger'
+        ? Math.random() * 8 + 32
+        : type === 'rainbow_bonus'
         ? Math.random() * 6 + 36
         : type === 'time_bonus' || type === 'multiplier_star'
         ? Math.random() * 6 + 32
         : Math.random() * 14 + 28;
 
-    const points = type === 'rainbow_bonus' ? 50 : type === 'time_bonus' ? 25 : type === 'multiplier_star' ? 30 : 10;
-    const currentThemeStyles = getBubbleStyles(settings.theme || 'spring');
-    const style = currentThemeStyles[type] || currentThemeStyles.mint;
+    const points =
+      type === 'danger'
+        ? 0
+        : type === 'rainbow_bonus'
+        ? 50
+        : type === 'time_bonus'
+        ? 25
+        : type === 'multiplier_star'
+        ? 30
+        : isReflex
+        ? 20
+        : 10;
 
+    const currentThemeStyles = getBubbleStyles(settings.theme || 'spring');
+    const style =
+      type === 'danger'
+        ? DANGER_BUBBLE_STYLE
+        : currentThemeStyles[type] || currentThemeStyles.mint;
 
     // Ensure bubble stays strictly within the playfield horizontally
     const minX = baseRadius + 6;
@@ -183,68 +228,109 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
       isPopped: false,
       popProgress: 0,
       scored: false,
+      isDanger,
     };
   };
 
   const spawnPopVisuals = (bubble: Bubble, earnedPoints: number, comboMultiplier: number) => {
+    const isDanger = bubble.type === 'danger' || bubble.isDanger;
+    const isRainbow = bubble.type === 'rainbow_bonus';
+    const isTime = bubble.type === 'time_bonus';
+    const isStar = bubble.type === 'multiplier_star';
+    const isBonus = isRainbow || isTime || isStar;
+
     // 1. Dual-layer shockwave ripple with thinning stroke
     ripplesRef.current.push({
       id: nextIdRef.current++,
       x: bubble.x,
       y: bubble.y,
-      maxRadius: bubble.baseRadius * 1.9,
-      currentRadius: bubble.radius * 0.4,
-      color: bubble.style.baseColor,
-      alpha: 0.9,
-      lineWidth: 3.5,
+      maxRadius: isDanger ? bubble.baseRadius * 2.3 : bubble.baseRadius * 1.9,
+      currentRadius: bubble.radius * 0.35,
+      color: isDanger ? '#EF4444' : bubble.style.baseColor,
+      alpha: isDanger ? 1.0 : 0.9,
+      lineWidth: isDanger ? 4.5 : 3.5,
     });
 
-    // 2. Floating score badge for instant tactile satisfaction
-    let scoreText = `+${earnedPoints}`;
-    let subtext: string | undefined = undefined;
-    const isBonus = bubble.type === 'rainbow_bonus' || bubble.type === 'time_bonus' || bubble.type === 'multiplier_star';
-
-    if (bubble.type === 'rainbow_bonus') {
-      subtext = '🌈 Rainbow!';
-    } else if (bubble.type === 'time_bonus') {
-      subtext = '+3s Time';
-    } else if (bubble.type === 'multiplier_star') {
-      subtext = '★ Star Boost';
-    } else if (comboMultiplier > 1) {
-      subtext = `${comboMultiplier}x Multiplier`;
+    if (isBonus || isDanger) {
+      // Secondary concentric ripple for extra punch
+      ripplesRef.current.push({
+        id: nextIdRef.current++,
+        x: bubble.x,
+        y: bubble.y,
+        maxRadius: bubble.baseRadius * 1.45,
+        currentRadius: bubble.radius * 0.2,
+        color: '#FFFFFF',
+        alpha: 0.85,
+        lineWidth: 2.2,
+      });
     }
 
-    floatingScoresRef.current.push({
-      id: nextIdRef.current++,
-      x: bubble.x,
-      y: bubble.y - 12,
-      text: scoreText,
-      subtext,
-      color:
-        bubble.type === 'rainbow_bonus'
-          ? '#7C3AED'
-          : bubble.type === 'time_bonus'
-          ? '#D97706'
-          : bubble.type === 'multiplier_star'
-          ? '#BE185D'
-          : '#1E293B',
-      alpha: 1,
-      scale: 0.85,
-      vy: -48,
-      isBonus,
-    });
+    // 2. Floating score / streak badge for tactile satisfaction
+    if (!isDanger) {
+      let scoreText = `+${earnedPoints}`;
+      let subtext: string | undefined = undefined;
+
+      if (isRainbow) {
+        subtext = '🌈 Rainbow!';
+      } else if (isTime) {
+        subtext = '+3s Time';
+      } else if (isStar) {
+        subtext = '★ Star Boost';
+      } else if (comboMultiplier > 1) {
+        subtext = `${comboMultiplier}x Multiplier`;
+      }
+
+      floatingScoresRef.current.push({
+        id: nextIdRef.current++,
+        x: bubble.x,
+        y: bubble.y - 12,
+        text: scoreText,
+        subtext,
+        color:
+          isRainbow
+            ? '#7C3AED'
+            : isTime
+            ? '#D97706'
+            : isStar
+            ? '#BE185D'
+            : '#1E293B',
+        alpha: 1,
+        scale: 0.85,
+        vy: -48,
+        isBonus,
+      });
+    } else {
+      floatingScoresRef.current.push({
+        id: nextIdRef.current++,
+        x: bubble.x,
+        y: bubble.y - 12,
+        text: 'HAZARD!',
+        subtext: 'Detonated',
+        color: '#DC2626',
+        alpha: 1,
+        scale: 1.05,
+        vy: -42,
+        isBonus: false,
+      });
+    }
 
     if (settings.reducedMotion) return;
 
     // 3. Multi-color particle burst with sparkles & droplets
-    const count = bubble.type === 'rainbow_bonus' ? 14 : 10;
+    const count = isDanger ? 18 : isRainbow ? 16 : isBonus ? 13 : 10;
     const rainbowColors = ['#FF80AB', '#FFE57F', '#A8E6CF', '#BAE1FF', '#DED2F9', '#FFDFBA'];
+    const dangerColors = ['#EF4444', '#DC2626', '#B91C1C', '#F87171', '#FDE047', '#FFFFFF'];
 
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.35 - 0.175);
-      const speed = Math.random() * 85 + 40;
-      const particleColor =
-        bubble.type === 'rainbow_bonus' ? rainbowColors[i % rainbowColors.length] : bubble.style.baseColor;
+      const speed = isDanger ? Math.random() * 110 + 60 : Math.random() * 85 + 40;
+      const particleColor = isDanger
+        ? dangerColors[i % dangerColors.length]
+        : isRainbow
+        ? rainbowColors[i % rainbowColors.length]
+        : i % 3 === 0
+        ? '#FFFFFF'
+        : bubble.style.baseColor;
 
       particlesRef.current.push({
         id: nextIdRef.current++,
@@ -253,11 +339,11 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         color: particleColor,
-        size: Math.random() * 3.2 + 2.2,
+        size: isDanger ? Math.random() * 3.8 + 2.5 : Math.random() * 3.2 + 2.2,
         alpha: 1,
         life: 1,
         rotation: Math.random() * Math.PI,
-        rotSpeed: (Math.random() - 0.5) * 6,
+        rotSpeed: (Math.random() - 0.5) * 8,
         isSparkle: i % 2 === 0, // Alternate between circular droplets and 4-point diamond sparkles
       });
     }
@@ -277,6 +363,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
       const width = canvas.width;
       const height = canvas.height;
       const ctx = canvas.getContext('2d');
+      const nowMs = time;
 
       if (ctx && width > 0 && height > 0) {
         ctx.clearRect(0, 0, width, height);
@@ -311,19 +398,25 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
               continue;
             }
 
-            // Dynamic difficulty: as score increases in Flow Mode, slightly ramp float speed (up to 1.45x)
-            const flowSpeedFactor =
+            // Dynamic difficulty:
+            // - Flow Mode: gently ramp float speed with score (up to 1.45x)
+            // - Reflex Mode: gently ramp float speed over 60s run (from 1.0x to 1.35x)
+            const reflexPaceFactor =
+              mode === 'reflex'
+                ? 1.0 + Math.min(0.35, Math.max(0, (60 - (statsRef.current.remainingTime ?? 60)) / 60) * 0.35)
+                : 1.0;
+            const activeSpeedFactor =
               mode === 'flow'
                 ? Math.min(1.45, 1.0 + Math.floor(statsRef.current.score / 200) * 0.05)
-                : 1.0;
+                : reflexPaceFactor;
 
-            if (mode === 'flow' && Math.abs(flowSpeedFactor - lastFlowPaceRef.current) > 0.01) {
-              lastFlowPaceRef.current = flowSpeedFactor;
-              onFlowPaceChange?.(flowSpeedFactor);
+            if (mode === 'flow' && Math.abs(activeSpeedFactor - lastFlowPaceRef.current) > 0.01) {
+              lastFlowPaceRef.current = activeSpeedFactor;
+              onFlowPaceChange?.(activeSpeedFactor);
             }
 
-            // Gentle buoyant movement with dynamic flow pace
-            b.y += b.vy * dt * flowSpeedFactor;
+            // Gentle buoyant movement with dynamic pace factor
+            b.y += b.vy * dt * activeSpeedFactor;
             b.x += b.vx * dt;
 
 
@@ -443,22 +536,43 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
             return;
           }
 
-          // A. Soft outer ambient glow
-          const glowGrad = ctx.createRadialGradient(0, 0, b.radius * 0.7, 0, 0, b.radius * 1.25);
-          glowGrad.addColorStop(0, b.style.glowColor);
-          glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          ctx.fillStyle = glowGrad;
-          ctx.beginPath();
-          ctx.arc(0, 0, b.radius * 1.25, 0, Math.PI * 2);
-          ctx.fill();
+          const isDangerBubble = b.type === 'danger' || b.isDanger;
+
+          // A. Soft outer ambient glow (danger bubbles get an animated volatile pulse aura)
+          if (isDangerBubble) {
+            const dangerPulse = Math.sin(nowMs * 0.007 + b.id) * 0.2 + 0.8;
+            const dangerGlowGrad = ctx.createRadialGradient(0, 0, b.radius * 0.75, 0, 0, b.radius * 1.4);
+            dangerGlowGrad.addColorStop(0, `rgba(239, 68, 68, ${0.65 * dangerPulse})`);
+            dangerGlowGrad.addColorStop(0.65, `rgba(185, 28, 28, ${0.35 * dangerPulse})`);
+            dangerGlowGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+            ctx.fillStyle = dangerGlowGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius * 1.4, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            const glowGrad = ctx.createRadialGradient(0, 0, b.radius * 0.7, 0, 0, b.radius * 1.25);
+            glowGrad.addColorStop(0, b.style.glowColor);
+            glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius * 1.25, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           // B. Main bubble body radial gradient
           const gradX = -b.radius * 0.35;
           const gradY = -b.radius * 0.35;
           const bodyGrad = ctx.createRadialGradient(gradX, gradY, b.radius * 0.1, 0, 0, b.radius);
-          bodyGrad.addColorStop(0, b.style.lightColor);
-          bodyGrad.addColorStop(0.55, b.style.baseColor);
-          bodyGrad.addColorStop(1, b.style.ringColor);
+          if (isDangerBubble) {
+            bodyGrad.addColorStop(0, '#FFE4E6');
+            bodyGrad.addColorStop(0.28, '#F43F5E');
+            bodyGrad.addColorStop(0.72, '#DC2626');
+            bodyGrad.addColorStop(1, '#881337');
+          } else {
+            bodyGrad.addColorStop(0, b.style.lightColor);
+            bodyGrad.addColorStop(0.55, b.style.baseColor);
+            bodyGrad.addColorStop(1, b.style.ringColor);
+          }
 
           ctx.fillStyle = bodyGrad;
           ctx.beginPath();
@@ -474,7 +588,7 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
             b.radius * 0.35,
             b.radius * 0.5
           );
-          causticGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+          causticGrad.addColorStop(0, isDangerBubble ? 'rgba(254, 202, 202, 0.45)' : 'rgba(255, 255, 255, 0.45)');
           causticGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
           ctx.fillStyle = causticGrad;
           ctx.beginPath();
@@ -482,21 +596,21 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
           ctx.fill();
 
           // D. Delicate outer perimeter sheen ring
-          ctx.lineWidth = 1.6;
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.lineWidth = isDangerBubble ? 2.2 : 1.6;
+          ctx.strokeStyle = isDangerBubble ? 'rgba(254, 226, 226, 0.95)' : 'rgba(255, 255, 255, 0.8)';
           ctx.stroke();
 
           // E. Specular 3D highlight crescent in upper left
           const hlX = -b.radius * 0.32;
           const hlY = -b.radius * 0.32;
           const hlRadius = b.radius * 0.22;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
           ctx.beginPath();
           ctx.arc(hlX, hlY, hlRadius, 0, Math.PI * 2);
           ctx.fill();
 
           // F. Secondary specular glint dot
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
           ctx.beginPath();
           ctx.arc(hlX + b.radius * 0.24, hlY + b.radius * 0.08, b.radius * 0.07, 0, Math.PI * 2);
           ctx.fill();
@@ -520,6 +634,18 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
             ctx.beginPath();
             ctx.arc(0, 0, b.radius * 0.42, 0, Math.PI * 2);
             ctx.stroke();
+          } else if (isDangerBubble) {
+            // Distinct danger bubble visual with shadow and high-contrast warning shield
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 1;
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `900 ${Math.round(b.radius * 0.72)}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⚠', 0, 1);
+            ctx.restore();
           }
 
           ctx.restore();
@@ -664,14 +790,85 @@ export const BubbleCanvas: React.FC<BubbleCanvasProps> = ({
           b.isPopped = true;
           b.scored = true;
 
+          const vol = settings.soundVolume ?? 0.8;
+
+          // REFLEX PROTOCOL LOGIC:
+          // - Tapping danger bubble => Immediate failure!
+          // - Tapping target color bubble => Score points & combo!
+          // - Tapping wrong color bubble => Immediate failure!
+          if (mode === 'reflex') {
+            if (b.type === 'danger' || b.isDanger) {
+              soundEngine.playFail(settings.soundEnabled, settings.hapticEnabled, vol);
+              spawnPopVisuals(b, 0, 1);
+              const survived = Math.max(0, 60 - statsRef.current.remainingTime);
+              onUpdateStats((prev) => ({
+                ...prev,
+                isGameOver: true,
+                isFailed: true,
+                elapsedTime: survived,
+                gameOverReason: 'danger_bubble',
+                failureMessage: 'Critical Failure: Danger bubble detonated!',
+              }));
+              break;
+            }
+
+            const currentTarget = (statsRef.current.targetColor as TargetColor) || 'mint';
+            if (b.type === currentTarget) {
+              const currentCombo = statsRef.current.combo + 1;
+              comboTimerRef.current = 1.8;
+
+              if (currentCombo === 5 || currentCombo === 10 || currentCombo === 15 || currentCombo === 20) {
+                soundEngine.playComboMilestone(currentCombo, settings.soundEnabled, settings.hapticEnabled, vol);
+              } else {
+                soundEngine.playPop(currentCombo, settings.soundEnabled, settings.hapticEnabled, vol);
+              }
+
+              const multiplier = currentCombo >= 15 ? 4 : currentCombo >= 10 ? 3 : currentCombo >= 5 ? 2 : 1;
+              const earned = 20 * multiplier;
+
+              spawnPopVisuals(b, earned, multiplier);
+
+              onUpdateStats((prev) => ({
+                ...prev,
+                score: prev.score + earned,
+                combo: currentCombo,
+                maxCombo: Math.max(prev.maxCombo, currentCombo),
+                totalPops: prev.totalPops + 1,
+              }));
+              break;
+            } else {
+              // Tapped wrong color bubble
+              soundEngine.playFail(settings.soundEnabled, settings.hapticEnabled, vol);
+              spawnPopVisuals(b, 0, 1);
+
+              const targetConfig = TARGET_COLOR_CONFIGS[currentTarget];
+              const tappedConfig = TARGET_COLOR_CONFIGS[b.type as TargetColor];
+              const targetName = targetConfig?.name || currentTarget;
+              const tappedName = tappedConfig?.name || b.type;
+              const survived = Math.max(0, 60 - statsRef.current.remainingTime);
+
+              onUpdateStats((prev) => ({
+                ...prev,
+                isGameOver: true,
+                isFailed: true,
+                elapsedTime: survived,
+                gameOverReason: 'wrong_color',
+                failureMessage: `Protocol Violated: Tapped ${tappedName} instead of ${targetName}!`,
+              }));
+              break;
+            }
+          }
+
+          // FLOW & COMBO RUSH MODES:
           const currentCombo = statsRef.current.combo + 1;
           comboTimerRef.current = 1.8; // 1.8s window to maintain combo streak
 
           const isBonus = b.type === 'rainbow_bonus' || b.type === 'time_bonus' || b.type === 'multiplier_star';
-          const vol = settings.soundVolume ?? 0.8;
 
           if (isBonus) {
             soundEngine.playBonus(settings.soundEnabled, settings.hapticEnabled, vol);
+          } else if (currentCombo === 5 || currentCombo === 10 || currentCombo === 15 || currentCombo === 20) {
+            soundEngine.playComboMilestone(currentCombo, settings.soundEnabled, settings.hapticEnabled, vol);
           } else {
             soundEngine.playPop(currentCombo, settings.soundEnabled, settings.hapticEnabled, vol);
           }

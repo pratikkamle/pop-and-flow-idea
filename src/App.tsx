@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { GameMode, GameSettings, GameStats, DailyChallenge, Achievement } from './game/types';
+import { GameMode, GameSettings, GameStats, DailyChallenge, Achievement, TargetColor } from './game/types';
+import { TARGET_COLORS, TARGET_COLOR_CONFIGS } from './game/themes';
 import { PhoneFrame } from './components/PhoneFrame';
 import { HomeScreen } from './components/HomeScreen';
 import { BubbleCanvas } from './game/BubbleCanvas';
@@ -63,6 +64,9 @@ export default function App() {
   const [bestRushScore, setBestRushScore] = useState<number>(() => {
     return parseInt(localStorage.getItem('pop_flow_best_rush') || '0', 10);
   });
+  const [bestReflexScore, setBestReflexScore] = useState<number>(() => {
+    return parseInt(localStorage.getItem('pop_flow_best_reflex') || '0', 10);
+  });
   const [lifetimePops, setLifetimePops] = useState<number>(() => {
     return parseInt(localStorage.getItem('pop_flow_lifetime_pops') || '0', 10);
   });
@@ -101,9 +105,11 @@ export default function App() {
   const handleResetScores = () => {
     setBestFlowScore(0);
     setBestRushScore(0);
+    setBestReflexScore(0);
     setLifetimePops(0);
     localStorage.removeItem('pop_flow_best_flow');
     localStorage.removeItem('pop_flow_best_rush');
+    localStorage.removeItem('pop_flow_best_reflex');
     localStorage.removeItem('pop_flow_lifetime_pops');
     localStorage.removeItem('pop_flow_achievements');
     setAchievements(loadAchievements());
@@ -113,18 +119,50 @@ export default function App() {
   const handleStartMode = (selectedMode: GameMode) => {
     setMode(selectedMode);
     setFlowPace(1.0);
+    const initialTarget: TargetColor =
+      selectedMode === 'reflex'
+        ? TARGET_COLORS[Math.floor(Math.random() * TARGET_COLORS.length)]
+        : 'mint';
+    const targetConfig = TARGET_COLOR_CONFIGS[initialTarget];
+
     setStats({
       ...DEFAULT_STATS,
-      remainingTime: selectedMode === 'combo_rush' ? 30 : 0,
+      remainingTime: selectedMode === 'reflex' ? 60 : selectedMode === 'combo_rush' ? 30 : 0,
+      elapsedTime: 0,
+      targetColor: initialTarget,
+      targetColorTimeRemaining: selectedMode === 'reflex' ? 10 : undefined,
+      targetShiftNotification:
+        selectedMode === 'reflex'
+          ? { color: initialTarget, name: targetConfig?.name || initialTarget, id: Date.now() }
+          : undefined,
+      isFailed: false,
+      gameOverReason: undefined,
+      failureMessage: undefined,
     });
     setScreen('game');
   };
 
   const handleRestart = () => {
     setFlowPace(1.0);
+    const initialTarget: TargetColor =
+      mode === 'reflex'
+        ? TARGET_COLORS[Math.floor(Math.random() * TARGET_COLORS.length)]
+        : 'mint';
+    const targetConfig = TARGET_COLOR_CONFIGS[initialTarget];
+
     setStats({
       ...DEFAULT_STATS,
-      remainingTime: mode === 'combo_rush' ? 30 : 0,
+      remainingTime: mode === 'reflex' ? 60 : mode === 'combo_rush' ? 30 : 0,
+      elapsedTime: 0,
+      targetColor: initialTarget,
+      targetColorTimeRemaining: mode === 'reflex' ? 10 : undefined,
+      targetShiftNotification:
+        mode === 'reflex'
+          ? { color: initialTarget, name: targetConfig?.name || initialTarget, id: Date.now() }
+          : undefined,
+      isFailed: false,
+      gameOverReason: undefined,
+      failureMessage: undefined,
     });
   };
 
@@ -214,24 +252,53 @@ export default function App() {
     achievements,
   ]);
 
-  // Combo Rush countdown timer: counts down 30s of ACTIVE gameplay only
+  // Active gameplay timer: Combo Rush (30s) & Reflex Protocol (60s with 10s color shifts)
   useEffect(() => {
-    if (screen !== 'game' || mode !== 'combo_rush' || stats.isPaused || stats.isGameOver) {
+    if (screen !== 'game' || (mode !== 'combo_rush' && mode !== 'reflex') || stats.isPaused || stats.isGameOver) {
       return;
     }
 
     const timer = setInterval(() => {
       setStats((prev) => {
         const nextTime = Math.max(0, prev.remainingTime - 0.2);
+
+        // Reflex Protocol: shift target color every 10 seconds
+        let nextTargetColor = prev.targetColor || 'mint';
+        let nextTargetColorTime = (prev.targetColorTimeRemaining ?? 10) - 0.2;
+        let newShiftNotification = prev.targetShiftNotification;
+
+        if (mode === 'reflex') {
+          if (nextTargetColorTime <= 0.05) {
+            // Pick a new target color different from current
+            const otherColors = TARGET_COLORS.filter((c) => c !== nextTargetColor);
+            nextTargetColor = otherColors[Math.floor(Math.random() * otherColors.length)];
+            nextTargetColorTime = 10.0;
+            const targetConfig = TARGET_COLOR_CONFIGS[nextTargetColor];
+            newShiftNotification = {
+              color: nextTargetColor,
+              name: targetConfig?.name || nextTargetColor,
+              id: Date.now(),
+            };
+            soundEngine.playTargetShift(settings.soundEnabled, settings.hapticEnabled, settings.soundVolume);
+          }
+        }
+
+        const updatedElapsed = (prev.elapsedTime ?? 0) + 0.2;
+
         if (nextTime <= 0) {
           clearInterval(timer);
 
           // Check personal best
-          const currentBest = parseInt(localStorage.getItem('pop_flow_best_rush') || '0', 10);
+          const storageKey = mode === 'reflex' ? 'pop_flow_best_reflex' : 'pop_flow_best_rush';
+          const currentBest = parseInt(localStorage.getItem(storageKey) || '0', 10);
           const isBest = prev.score > currentBest;
           if (isBest) {
-            localStorage.setItem('pop_flow_best_rush', prev.score.toString());
-            setBestRushScore(prev.score);
+            localStorage.setItem(storageKey, prev.score.toString());
+            if (mode === 'reflex') {
+              setBestReflexScore(prev.score);
+            } else {
+              setBestRushScore(prev.score);
+            }
           }
 
           // Accumulate lifetime pops
@@ -240,22 +307,55 @@ export default function App() {
           localStorage.setItem('pop_flow_lifetime_pops', updatedLifetime.toString());
           setLifetimePops(updatedLifetime);
 
+          if (mode === 'reflex') {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.5 },
+              colors: ['#10B981', '#0EA5E9', '#F97316', '#8B5CF6', '#EAB308'],
+            });
+          }
+
           return {
             ...prev,
             remainingTime: 0,
+            elapsedTime: mode === 'reflex' ? 60 : updatedElapsed,
             isGameOver: true,
+            isFailed: false,
+            gameOverReason: 'time_up',
+            failureMessage:
+              mode === 'reflex'
+                ? 'Protocol Accomplished! Survived full 60 seconds!'
+                : undefined,
             isNewPersonalBest: isBest,
+            targetColor: nextTargetColor,
+            targetColorTimeRemaining: 0,
+            targetShiftNotification: newShiftNotification,
           };
         }
+
         return {
           ...prev,
           remainingTime: nextTime,
+          elapsedTime: updatedElapsed,
+          targetColor: nextTargetColor,
+          targetShiftNotification: newShiftNotification,
+          targetColorTimeRemaining:
+            mode === 'reflex' ? Math.max(0, nextTargetColorTime) : prev.targetColorTimeRemaining,
         };
       });
     }, 200);
 
     return () => clearInterval(timer);
-  }, [screen, mode, stats.isPaused, stats.isGameOver]);
+  }, [
+    screen,
+    mode,
+    stats.isPaused,
+    stats.isGameOver,
+    settings.soundEnabled,
+    settings.hapticEnabled,
+    settings.soundVolume,
+  ]);
 
   // In Flow Mode, record high score and lifetime pops continuously
   useEffect(() => {
@@ -334,6 +434,7 @@ export default function App() {
               <HomeScreen
                 bestFlowScore={bestFlowScore}
                 bestRushScore={bestRushScore}
+                bestReflexScore={bestReflexScore}
                 lifetimePops={lifetimePops}
                 dailyChallenge={dailyChallenge}
                 unlockedAchievementsCount={achievements.filter((a) => a.unlocked).length}
@@ -379,7 +480,14 @@ export default function App() {
                 {stats.isGameOver && (
                   <SummaryModal
                     stats={stats}
-                    bestScore={mode === 'combo_rush' ? bestRushScore : bestFlowScore}
+                    mode={mode}
+                    bestScore={
+                      mode === 'reflex'
+                        ? bestReflexScore
+                        : mode === 'combo_rush'
+                        ? bestRushScore
+                        : bestFlowScore
+                    }
                     onReplay={handleRestart}
                     onHome={handleReturnHome}
                   />

@@ -1,4 +1,4 @@
-import { ThemeId, BubbleType, BubbleStyle } from './types';
+import { ThemeId, BubbleType, BubbleStyle, TargetColor } from './types';
 
 export interface ThemeConfig {
   id: ThemeId;
@@ -8,6 +8,86 @@ export interface ThemeConfig {
   bgGradient: string;
   phoneBgClass: string;
 }
+
+export const TARGET_COLORS: TargetColor[] = ['mint', 'sky', 'peach', 'lavender', 'lemon', 'rose'];
+
+export interface TargetColorConfig {
+  id: TargetColor;
+  name: string;
+  badgeHex: string;
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+  ringClass: string;
+}
+
+export const TARGET_COLOR_CONFIGS: Record<TargetColor, TargetColorConfig> = {
+  mint: {
+    id: 'mint',
+    name: 'Mint Green',
+    badgeHex: '#10B981',
+    bgClass: 'bg-emerald-500',
+    textClass: 'text-emerald-950',
+    borderClass: 'border-emerald-300',
+    ringClass: 'ring-emerald-400',
+  },
+  sky: {
+    id: 'sky',
+    name: 'Sky Blue',
+    badgeHex: '#0EA5E9',
+    bgClass: 'bg-sky-500',
+    textClass: 'text-sky-950',
+    borderClass: 'border-sky-300',
+    ringClass: 'ring-sky-400',
+  },
+  peach: {
+    id: 'peach',
+    name: 'Peach Orange',
+    badgeHex: '#F97316',
+    bgClass: 'bg-orange-500',
+    textClass: 'text-orange-950',
+    borderClass: 'border-orange-300',
+    ringClass: 'ring-orange-400',
+  },
+  lavender: {
+    id: 'lavender',
+    name: 'Lavender Purple',
+    badgeHex: '#8B5CF6',
+    bgClass: 'bg-purple-500',
+    textClass: 'text-purple-950',
+    borderClass: 'border-purple-300',
+    ringClass: 'ring-purple-400',
+  },
+  lemon: {
+    id: 'lemon',
+    name: 'Lemon Yellow',
+    badgeHex: '#EAB308',
+    bgClass: 'bg-amber-400',
+    textClass: 'text-amber-950',
+    borderClass: 'border-amber-300',
+    ringClass: 'ring-amber-400',
+  },
+  rose: {
+    id: 'rose',
+    name: 'Rose Pink',
+    badgeHex: '#F43F5E',
+    bgClass: 'bg-rose-500',
+    textClass: 'text-rose-950',
+    borderClass: 'border-rose-300',
+    ringClass: 'ring-rose-400',
+  },
+};
+
+export const DANGER_BUBBLE_STYLE: BubbleStyle = {
+  baseColor: '#DC2626',
+  lightColor: '#FFE4E6',
+  glowColor: 'rgba(239, 68, 68, 0.75)',
+  ringColor: 'rgba(185, 28, 28, 0.95)',
+  base: '#DC2626',
+  light: '#FFE4E6',
+  glow: 'rgba(239, 68, 68, 0.75)',
+  ring: 'rgba(185, 28, 28, 0.95)',
+};
 
 export const THEMES: Record<ThemeId, ThemeConfig> = {
   spring: {
@@ -59,21 +139,25 @@ interface RawPaletteStyle {
   ring: string;
 }
 
-const toBubbleStyles = (palette: Record<BubbleType, RawPaletteStyle>): Record<BubbleType, BubbleStyle> => {
+const toBubbleStyles = (palette: Partial<Record<BubbleType, RawPaletteStyle>>): Record<BubbleType, BubbleStyle> => {
   const result: Partial<Record<BubbleType, BubbleStyle>> = {};
   for (const key of Object.keys(palette) as BubbleType[]) {
     const s = palette[key];
-    result[key] = {
-      baseColor: s.base,
-      lightColor: s.light,
-      glowColor: s.glow,
-      ringColor: s.ring,
-      base: s.base,
-      light: s.light,
-      glow: s.glow,
-      ring: s.ring,
-    };
+    if (s) {
+      result[key] = {
+        baseColor: s.base,
+        lightColor: s.light,
+        glowColor: s.glow,
+        ringColor: s.ring,
+        base: s.base,
+        light: s.light,
+        glow: s.glow,
+        ring: s.ring,
+      };
+    }
   }
+  // Ensure danger style is always reliably available
+  result.danger = DANGER_BUBBLE_STYLE;
   return result as Record<BubbleType, BubbleStyle>;
 };
 

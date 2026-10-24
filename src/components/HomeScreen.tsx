@@ -1,10 +1,11 @@
 import React from 'react';
-import { Play, Timer, Settings as SettingsIcon, Sparkles, CheckCircle2, Trophy, Flame } from 'lucide-react';
+import { Play, Timer, Settings as SettingsIcon, Sparkles, CheckCircle2, Trophy, Flame, Zap } from 'lucide-react';
 import { GameMode, DailyChallenge } from '../game/types';
 
 interface HomeScreenProps {
   bestFlowScore: number;
   bestRushScore: number;
+  bestReflexScore?: number;
   lifetimePops: number;
   dailyChallenge: DailyChallenge;
   unlockedAchievementsCount?: number;
@@ -17,6 +18,7 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   bestFlowScore,
   bestRushScore,
+  bestReflexScore = 0,
   lifetimePops,
   dailyChallenge,
   unlockedAchievementsCount = 0,
@@ -173,6 +175,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5 truncate">
               30-second challenge · Multipliers &amp; +time bubbles
+            </p>
+          </div>
+        </button>
+
+        {/* Mode 3: Reflex Protocol */}
+        <button
+          onClick={() => onStartMode('reflex')}
+          className="group relative flex items-center gap-3.5 w-full p-3.5 rounded-2xl bg-white/95 hover:bg-white shadow-sm border border-rose-100/60 transition-all active:scale-[0.98] text-left"
+        >
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#FFAAA6] to-[#FFE5E8] flex items-center justify-center shrink-0 shadow-sm border border-[#FFAAA6]/40">
+            <Zap className="w-5 h-5 text-rose-600 fill-rose-500" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-slate-800 text-sm sm:text-base">Reflex Protocol</span>
+                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 tracking-wide">
+                  60s
+                </span>
+              </div>
+              {bestReflexScore > 0 && (
+                <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
+                  Best {bestReflexScore}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5 truncate">
+              Target color shifts every 10s · Avoid hazard bubbles
             </p>
           </div>
         </button>

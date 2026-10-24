@@ -1,4 +1,6 @@
-export type GameMode = 'flow' | 'combo_rush';
+export type GameMode = 'flow' | 'combo_rush' | 'reflex';
+
+export type TargetColor = 'mint' | 'sky' | 'peach' | 'lavender' | 'lemon' | 'rose';
 
 export type BubbleType =
   | 'mint'
@@ -9,7 +11,8 @@ export type BubbleType =
   | 'rose'
   | 'rainbow_bonus'
   | 'time_bonus'
-  | 'multiplier_star';
+  | 'multiplier_star'
+  | 'danger';
 
 export interface BubbleStyle {
   baseColor: string;
@@ -41,6 +44,7 @@ export interface Bubble {
   isPopped: boolean;
   popProgress: number;
   scored?: boolean;
+  isDanger?: boolean;
 }
 
 export interface PopParticle {
@@ -90,10 +94,21 @@ export interface GameStats {
   maxCombo: number;
   totalPops: number;
   bonusPops: number;
-  remainingTime: number; // in seconds for Combo Rush
+  remainingTime: number; // in seconds for Combo Rush / Reflex Protocol
   isPaused: boolean;
   isGameOver: boolean;
   isNewPersonalBest: boolean;
+  targetColor?: TargetColor;
+  targetColorTimeRemaining?: number;
+  targetShiftNotification?: {
+    color: TargetColor;
+    name: string;
+    id: number;
+  };
+  elapsedTime?: number;
+  isFailed?: boolean;
+  gameOverReason?: 'time_up' | 'wrong_color' | 'danger_bubble';
+  failureMessage?: string;
 }
 
 export interface FloatingScore {
