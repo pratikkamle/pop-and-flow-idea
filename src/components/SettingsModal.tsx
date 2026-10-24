@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Volume2, Sparkles, Smartphone, Eye, Sliders, Trash2 } from 'lucide-react';
-import { BubbleDensity, BubbleSpeed, GameSettings } from '../game/types';
+import { ArrowLeft, Volume2, Sparkles, Smartphone, Eye, Trash2, VolumeX } from 'lucide-react';
+import { BubbleDensity, BubbleSpeed, GameSettings, ThemeId } from '../game/types';
+import { THEMES } from '../game/themes';
 import { soundEngine } from '../game/audio';
+
 
 interface SettingsModalProps {
   settings: GameSettings;
@@ -22,9 +24,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onUpdateSettings({ ...settings, soundEnabled: enabled });
   };
 
+  const handleVolumeChange = (volume: number) => {
+    onUpdateSettings({ ...settings, soundVolume: volume });
+    soundEngine.setVolume(volume);
+  };
+
   const handleToggleAmbient = (enabled: boolean) => {
     onUpdateSettings({ ...settings, ambientSound: enabled });
-    soundEngine.setAmbientDrone(enabled);
+    soundEngine.setAmbientDrone(enabled, settings.soundVolume ?? 0.8);
   };
 
   const handleToggleHaptic = (enabled: boolean) => {
@@ -64,7 +71,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Sensory Card */}
         <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex flex-col gap-3">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Audio &amp; Tactile
+            Audio &amp; Tactile Feedback
           </span>
 
           {/* Sound FX */}
@@ -73,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Volume2 className="w-4 h-4 text-slate-600" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Pop Chimes</p>
-                <p className="text-[11px] text-slate-500">Procedural pentatonic tones</p>
+                <p className="text-[11px] text-slate-500">Soothing pentatonic kalimba tones</p>
               </div>
             </div>
             <input
@@ -84,6 +91,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
 
+          {/* Sound Volume Slider */}
+          {settings.soundEnabled && (
+            <div className="pl-6.5 pr-1 py-1 flex items-center gap-3">
+              <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={settings.soundVolume ?? 0.8}
+                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                className="flex-1 accent-teal-500 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+              />
+              <Volume2 className="w-3.5 h-3.5 text-slate-600" />
+              <span className="text-[11px] font-mono text-slate-500 w-8 text-right">
+                {Math.round((settings.soundVolume ?? 0.8) * 100)}%
+              </span>
+            </div>
+          )}
+
           <div className="h-px bg-slate-100" />
 
           {/* Ambient Zen Drone */}
@@ -92,7 +119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Sparkles className="w-4 h-4 text-slate-600" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Zen Background Drone</p>
-                <p className="text-[11px] text-slate-500">Gentle calming ambient harmony</p>
+                <p className="text-[11px] text-slate-500">Gentle meditative chord drone</p>
               </div>
             </div>
             <input
@@ -111,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Smartphone className="w-4 h-4 text-slate-600" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Haptic Vibration</p>
-                <p className="text-[11px] text-slate-500">Android device vibration pulse</p>
+                <p className="text-[11px] text-slate-500">Gentle tactile device vibration pulses</p>
               </div>
             </div>
             <input
@@ -130,7 +157,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Eye className="w-4 h-4 text-slate-600" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Reduced Motion</p>
-                <p className="text-[11px] text-slate-500">Mutes wobble physics &amp; bursts</p>
+                <p className="text-[11px] text-slate-500">Mutes squash-and-stretch &amp; particle bursts</p>
               </div>
             </div>
             <input
@@ -145,12 +172,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Pacing & Physics Card */}
         <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex flex-col gap-3">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Bubble Pacing
+            Bubble Density &amp; Pacing
           </span>
 
-          {/* Density */}
+          {/* Density (8 - 14 bubbles) */}
           <div>
-            <p className="text-xs font-semibold text-slate-700 mb-1.5">Bubble Density</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-semibold text-slate-700">Density Count</p>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {settings.bubbleDensity === 'cozy' ? '8 bubbles' : settings.bubbleDensity === 'dense' ? '14 bubbles' : '11 bubbles'}
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-1.5 bg-slate-50 p-1 rounded-xl">
               {(['cozy', 'normal', 'dense'] as BubbleDensity[]).map((d) => (
                 <button
@@ -188,6 +220,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Theme Palette Picker Card */}
+        <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex flex-col gap-3">
+          <div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+              Color Theme
+            </span>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Updates background gradients and bubble color tones dynamically
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {(['spring', 'sunset', 'forest', 'ocean', 'twilight'] as ThemeId[]).map((tId) => {
+              const theme = THEMES[tId];
+              const isSelected = (settings.theme || 'spring') === tId;
+
+              return (
+                <button
+                  key={tId}
+                  onClick={() => onUpdateSettings({ ...settings, theme: tId })}
+                  className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                    isSelected
+                      ? 'bg-slate-50 border-teal-500/80 shadow-xs ring-1 ring-teal-500/30'
+                      : 'bg-white border-slate-100 hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Swatch dots */}
+                    <div className="flex items-center gap-1 shrink-0 p-1 bg-white rounded-lg border border-slate-200/60">
+                      {theme.swatches.map((color, idx) => (
+                        <div
+                          key={idx}
+                          className="w-3.5 h-3.5 rounded-full shadow-2xs border border-white"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">{theme.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{theme.subtitle}</p>
+                    </div>
+                  </div>
+
+                  {isSelected && (
+                    <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200/60 shrink-0">
+                      Active
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
 
         {/* Reset Scores Card */}
         <div className="p-4 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-between">

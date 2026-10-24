@@ -6,9 +6,10 @@ interface GameHudProps {
   mode: GameMode;
   stats: GameStats;
   onPause: () => void;
+  flowPaceMultiplier?: number;
 }
 
-export const GameHud: React.FC<GameHudProps> = ({ mode, stats, onPause }) => {
+export const GameHud: React.FC<GameHudProps> = ({ mode, stats, onPause, flowPaceMultiplier = 1.0 }) => {
   const isRush = mode === 'combo_rush';
   const timeInt = Math.ceil(stats.remainingTime);
   const isUrgent = isRush && timeInt <= 5;
@@ -41,8 +42,17 @@ export const GameHud: React.FC<GameHudProps> = ({ mode, stats, onPause }) => {
             <span className="font-mono tabular-nums">{timeInt}s</span>
           </div>
         ) : (
-          <div className="px-3 py-1 rounded-full bg-white/70 backdrop-blur-xs text-xs font-semibold text-slate-600 border border-slate-200/40">
-            Flow · <span className="tabular-nums font-mono">{stats.totalPops}</span> popped
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 backdrop-blur-xs text-xs font-semibold text-slate-600 border border-slate-200/50 shadow-2xs">
+            <span>Flow</span>
+            <span>·</span>
+            <span className="tabular-nums font-mono">{stats.totalPops}</span>
+            <span>popped</span>
+            {flowPaceMultiplier > 1.0 && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span className="text-teal-700 font-bold">{flowPaceMultiplier.toFixed(2)}x pace</span>
+              </>
+            )}
           </div>
         )}
 
@@ -67,4 +77,3 @@ export const GameHud: React.FC<GameHudProps> = ({ mode, stats, onPause }) => {
     </div>
   );
 };
-

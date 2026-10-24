@@ -99,3 +99,65 @@ To install on a connected Android phone:
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+---
+
+## 🔑 Building a Signed Release APK for Production / Play Store
+
+### Method 1: Android Studio Wizard (GUI)
+1. Open the project in Android Studio.
+2. In the top menu, click **Build** → **Generate Signed Bundle / APK...**
+3. Select **APK** (or **Android App Bundle (.aab)** for Google Play publication) and click **Next**.
+4. **Key store path**: Click **Create new...** if you don't already have one:
+   - Choose a secure file location (e.g. `keystore/release-key.jks`).
+   - Enter a password for the keystore and alias key.
+   - Enter your Developer/Organization certificate details.
+5. Select the `release` build variant and check both **V1 (Jar Signature)** and **V2 (Full APK Signature)**.
+6. Click **Finish**. Android Studio outputs the signed APK to:
+   ```
+   android/app/release/app-release.apk
+   ```
+
+### Method 2: Command Line (CLI)
+
+1. Generate a production keystore (if not already created):
+   ```bash
+   keytool -genkey -v -keystore release.keystore -alias popandflow -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Set environment variables (or place in `android/keystore.properties`):
+   ```bash
+   export RELEASE_KEYSTORE_PATH="/path/to/release.keystore"
+   export RELEASE_KEYSTORE_PASSWORD="your_keystore_password"
+   export RELEASE_KEY_ALIAS="popandflow"
+   export RELEASE_KEY_PASSWORD="your_key_password"
+   ```
+
+3. Build the signed release APK using Gradle:
+   ```bash
+   cd android
+   ./gradlew assembleRelease
+   ```
+
+The optimized, minified, signed APK will be generated at:
+```
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 🧪 Verification & Environmental Test Status
+
+### Validated & Verified in this Build Environment:
+- ✅ **Code Compilation**: TypeScript build (`npm run build`) passed with zero errors (`Exit 0`).
+- ✅ **Type Safety & Linting**: `tsc --noEmit` and ESLint passed cleanly with zero type or syntax defects.
+- ✅ **Achievements Milestone Tracking**: Local persistence schema, milestone thresholds (1, 50, 250, 1000 pops, 50x combo, daily streaks), and live unlock notifications verified.
+- ✅ **Dynamic Theme Engine**: 5 pastel themes (`Spring`, `Sunset`, `Forest`, `Ocean`, `Twilight`) dynamically switch canvas gradients, bubble palette styling, and UI backgrounds without state reset.
+- ✅ **Flow Mode Dynamic Pacing**: Gentle buoyancy speeds scale smoothly as session score rises.
+- ✅ **Combo Rush 30s Gameplay & Pause**: Strict 30s countdown, bonus time bubble extensions (+3s), combo multipliers (2x-4x), and lifecycle pause/resume.
+- ✅ **Touch & Hit Detection**: Accurate circular Euclidean radius hit testing with single-score enforcement per bubble.
+- ✅ **Offline Standalone**: Zero third-party network, ad, or analytics calls; 100% offline data handling.
+
+### Items That Could Not Be Directly Verified in Cloud Sandbox:
+- ⚠️ **Native Android ART Runtime / APK Bytecode Execution**: The cloud sandbox runs a Node/Linux environment without the Android SDK, Android NDK, or hardware-accelerated emulator (`qemu-kvm`). Direct Gradle APK assembly and Android OS bytecode execution must be run on a workstation with Android Studio or the Android SDK command-line tools installed.
+- ⚠️ **Hardware Touch Screen Latency & Physical Vibration Actuator**: Real touch glass friction and physical linear resonant actuators (LRA / ERM haptic motors) were verified via Web Audio acoustic synthesizers and the browser Vibration API rather than physical Android device hardware.

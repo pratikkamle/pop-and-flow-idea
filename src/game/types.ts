@@ -16,6 +16,10 @@ export interface BubbleStyle {
   lightColor: string;
   glowColor: string;
   ringColor: string;
+  base?: string;
+  light?: string;
+  glow?: string;
+  ring?: string;
 }
 
 export interface Bubble {
@@ -29,10 +33,14 @@ export interface Bubble {
   vy: number;
   wobblePhase: number;
   wobbleSpeed: number;
+  scaleX: number;
+  scaleY: number;
+  wallSquish: number;
   style: BubbleStyle;
   points: number;
   isPopped: boolean;
   popProgress: number;
+  scored?: boolean;
 }
 
 export interface PopParticle {
@@ -45,6 +53,9 @@ export interface PopParticle {
   size: number;
   alpha: number;
   life: number;
+  rotation: number;
+  rotSpeed: number;
+  isSparkle: boolean;
 }
 
 export interface PopRipple {
@@ -55,18 +66,22 @@ export interface PopRipple {
   currentRadius: number;
   color: string;
   alpha: number;
+  lineWidth: number;
 }
 
 export type BubbleDensity = 'cozy' | 'normal' | 'dense';
 export type BubbleSpeed = 'gentle' | 'balanced' | 'lively';
+export type ThemeId = 'spring' | 'sunset' | 'forest' | 'ocean' | 'twilight';
 
 export interface GameSettings {
   soundEnabled: boolean;
+  soundVolume: number; // 0.0 to 1.0
   ambientSound: boolean;
   hapticEnabled: boolean;
   reducedMotion: boolean;
   bubbleDensity: BubbleDensity;
   bubbleSpeed: BubbleSpeed;
+  theme: ThemeId;
 }
 
 export interface GameStats {
@@ -86,8 +101,33 @@ export interface FloatingScore {
   x: number;
   y: number;
   text: string;
+  subtext?: string;
   color: string;
   alpha: number;
   scale: number;
   vy: number;
+  isBonus?: boolean;
 }
+
+export interface DailyChallenge {
+  date: string; // YYYY-MM-DD
+  targetScore: number;
+  currentScore: number;
+  isCompleted: boolean;
+  streak: number;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  iconName: string;
+  category: 'pops' | 'combos' | 'score' | 'bonus' | 'daily';
+  targetValue: number;
+  currentValue: number;
+  unlocked: boolean;
+  unlockedAt?: string;
+}
+
+
+

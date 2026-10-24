@@ -159,22 +159,30 @@ class BubbleEngine {
             bubble.y += bubble.vy * dt
             bubble.x += bubble.vx * dt
 
-            // Sine wobble unless reduced motion
+            // Smooth squash-and-stretch unless reduced motion
             if (!reducedMotion) {
                 val wobble = sin(System.currentTimeMillis() * 0.002f * bubble.wobbleSpeed + bubble.wobblePhase)
                 bubble.x += wobble * 0.28f
-                bubble.radius = bubble.baseRadius + (wobble * 0.8f)
+                bubble.wallSquish += (0f - bubble.wallSquish) * dt * 8f
+                bubble.scaleX = 1.0f - wobble * 0.045f + bubble.wallSquish
+                bubble.scaleY = 1.0f + wobble * 0.045f - bubble.wallSquish * 0.55f
+            } else {
+                bubble.scaleX = 1f
+                bubble.scaleY = 1f
             }
 
-            // Strict playfield containment
+            // Strict playfield containment & wall bounce squash
             if (bubble.x - bubble.radius < 4f) {
                 bubble.x = bubble.radius + 4f
                 bubble.vx = kotlin.math.abs(bubble.vx)
+                if (!reducedMotion) bubble.wallSquish = -0.12f
             } else if (bubble.x + bubble.radius > width - 4f) {
                 bubble.x = width - bubble.radius - 4f
                 bubble.vx = -kotlin.math.abs(bubble.vx)
+                if (!reducedMotion) bubble.wallSquish = -0.12f
             }
             bubble.x = bubble.x.coerceIn(bubble.radius + 2f, width - bubble.radius - 2f)
+
 
             // When bubble drifts above top screen, cycle back to bottom smoothly
             if (bubble.y + bubble.radius < -15f) {

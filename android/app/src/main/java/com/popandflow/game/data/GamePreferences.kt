@@ -23,9 +23,53 @@ class GamePreferences(context: Context) {
         private const val KEY_REDUCED_MOTION = "reduced_motion"
         private const val KEY_DENSITY = "density_setting"
         private const val KEY_SPEED = "speed_setting"
+        private const val KEY_DAILY_DATE = "daily_challenge_date"
+        private const val KEY_DAILY_TARGET = "daily_challenge_target"
+        private const val KEY_DAILY_SCORE = "daily_challenge_score"
+        private const val KEY_DAILY_COMPLETED = "daily_challenge_completed"
+        private const val KEY_DAILY_STREAK = "daily_challenge_streak"
     }
 
+    fun getDailyChallenge(todayDate: String): Triple<Int, Int, Boolean> {
+        val savedDate = prefs.getString(KEY_DAILY_DATE, "")
+        if (savedDate == todayDate) {
+            val target = prefs.getInt(KEY_DAILY_TARGET, 800)
+            val score = prefs.getInt(KEY_DAILY_SCORE, 0)
+            val completed = prefs.getBoolean(KEY_DAILY_COMPLETED, false)
+            return Triple(target, score, completed)
+        } else {
+            // New day: compute target (650 to 1150)
+            val hash = kotlin.math.abs(todayDate.hashCode())
+            val target = 650 + (hash % 6) * 100
+            prefs.edit()
+                .putString(KEY_DAILY_DATE, todayDate)
+                .putInt(KEY_DAILY_TARGET, target)
+                .putInt(KEY_DAILY_SCORE, 0)
+                .putBoolean(KEY_DAILY_COMPLETED, false)
+                .apply()
+            return Triple(target, 0, false)
+        }
+    }
+
+    fun recordDailyChallengeScore(todayDate: String, score: Int): Boolean {
+        val (target, currentScore, isCompleted) = getDailyChallenge(todayDate)
+        if (score > currentScore) {
+            val completedNow = !isCompleted && score >= target
+            val streak = prefs.getInt(KEY_DAILY_STREAK, 0) + (if (completedNow) 1 else 0)
+            prefs.edit()
+                .putInt(KEY_DAILY_SCORE, score)
+                .putBoolean(KEY_DAILY_COMPLETED, isCompleted || completedNow)
+                .putInt(KEY_DAILY_STREAK, streak)
+                .apply()
+            return completedNow
+        }
+        return false
+    }
+
+    fun getDailyStreak(): Int = prefs.getInt(KEY_DAILY_STREAK, 0)
+
     fun getFlowBestScore(): Int = prefs.getInt(KEY_BEST_SCORE_FLOW, 0)
+
     fun getRushBestScore(): Int = prefs.getInt(KEY_BEST_SCORE_RUSH, 0)
     fun getLifetimeMaxCombo(): Int = prefs.getInt(KEY_MAX_COMBO, 0)
     fun getLifetimePops(): Int = prefs.getInt(KEY_TOTAL_POPS, 0)

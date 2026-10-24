@@ -172,9 +172,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-                    // Update physics
+                    // Update physics with dynamic difficulty in Flow Mode
                     val speed = _settings.value.bubbleSpeed.multiplier
-                    engine.updateBubbles(bubbles, dt, screenWidth, screenHeight, _settings.value.reducedMotion, speed)
+                    val flowDynamic = if (_gameMode.value == GameMode.FLOW) {
+                        minOf(1.45f, 1.0f + (_stats.value.score / 200) * 0.05f)
+                    } else 1.0f
+                    engine.updateBubbles(bubbles, dt, screenWidth, screenHeight, _settings.value.reducedMotion, speed * flowDynamic)
+
                     engine.updateParticlesAndRipples(particles, ripples, dt)
                     ensureBubbleCount()
                 }

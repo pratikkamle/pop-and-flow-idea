@@ -384,35 +384,45 @@ export const AndroidProjectHub: React.FC = () => {
         </div>
       </div>
 
-      {/* APK Compilation Instructions Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* APK Compilation Instructions Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-2">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
             <span className="w-6 h-6 rounded-full bg-teal-100 text-teal-800 text-xs flex items-center justify-center font-bold">1</span>
             <span>Open in Android Studio</span>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
-            Extract the project and choose <strong>File → Open</strong> in Android Studio (version Ladybug, Iguana, or newer). Gradle Sync runs automatically.
+            Extract the zip and choose <strong>File → Open</strong> in Android Studio. Gradle Sync downloads SDK 35 and Compose dependencies automatically.
           </p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-2">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
             <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center justify-center font-bold">2</span>
-            <span>Build APK in 1 Click</span>
+            <span>Build Debug APK</span>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
-            Navigate to <strong>Build → Build Bundle(s) / APK(s) → Build APK(s)</strong>. The installable <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px]">app-debug.apk</code> is produced immediately.
+            Run <strong>Build → Build Bundle(s)/APK(s) → Build APK(s)</strong> or execute <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono">./gradlew assembleDebug</code> for <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px]">app-debug.apk</code>.
           </p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-2">
           <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
             <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-800 text-xs flex items-center justify-center font-bold">3</span>
-            <span>CLI or ADB Install</span>
+            <span>Sign Release APK</span>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
-            Run <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-mono">./gradlew assembleDebug</code> from terminal or <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-mono">adb install app-debug.apk</code>.
+            Select <strong>Build → Generate Signed Bundle / APK</strong> or run <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono">./gradlew assembleRelease</code> with keystore to output production <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px]">app-release.apk</code>.
+          </p>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-2">
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
+            <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs flex items-center justify-center font-bold">4</span>
+            <span>Install via ADB / Phone</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Connect phone with USB Debugging and run <code className="bg-slate-100 px-1.5 py-0.5 rounded text-[11px] font-mono">adb install -r app-debug.apk</code>, or transfer APK file directly to Android device.
           </p>
         </div>
       </div>

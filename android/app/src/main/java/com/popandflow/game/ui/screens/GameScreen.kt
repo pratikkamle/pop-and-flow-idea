@@ -122,16 +122,27 @@ fun GameScreen(
                         style = Stroke(width = 1.8.dp.toPx())
                     )
 
-                    // 4. Curved 3D specular highlight highlight
+                    // 4. Curved 3D specular highlight
                     val highlightCenter = Offset(
                         bubble.x - bubble.radius * 0.32f,
                         bubble.y - bubble.radius * 0.32f
                     )
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = Color.White.copy(alpha = 0.85f),
                         radius = bubble.radius * 0.22f,
                         center = highlightCenter
                     )
+
+                    // Secondary specular glint dot
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.65f),
+                        radius = bubble.radius * 0.08f,
+                        center = Offset(
+                            bubble.x - bubble.radius * 0.12f,
+                            bubble.y - bubble.radius * 0.26f
+                        )
+                    )
+
 
                     // 5. Special bubble inner icon/symbol
                     when (bubble.type) {

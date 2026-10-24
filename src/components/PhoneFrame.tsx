@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { Smartphone, Maximize2, Minimize2, Wifi, Battery, Sparkles } from 'lucide-react';
+import { Maximize2, Minimize2, Wifi, Battery } from 'lucide-react';
+import { ThemeId } from '../game/types';
+import { THEMES } from '../game/themes';
 
 interface PhoneFrameProps {
   children: React.ReactNode;
   activeScreenTitle?: string;
+  theme?: ThemeId;
 }
 
-export const PhoneFrame: React.FC<PhoneFrameProps> = ({ children, activeScreenTitle }) => {
+export const PhoneFrame: React.FC<PhoneFrameProps> = ({ children, activeScreenTitle, theme = 'spring' }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const themeConfig = THEMES[theme] || THEMES.spring;
+
 
   return (
     <div className="relative flex flex-col items-center justify-center w-full min-h-screen p-2 sm:p-6 bg-slate-900/5 select-none overflow-hidden">
@@ -68,9 +73,10 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({ children, activeScreenTi
         </div>
 
         {/* Screen Viewport with smooth pastel gradient */}
-        <div className="relative flex-1 w-full h-full overflow-hidden bg-gradient-to-b from-[#FAF5FF] via-[#F0F7FA] to-[#E6F3F7]">
+        <div className={`relative flex-1 w-full h-full overflow-hidden transition-colors duration-500 ${themeConfig.phoneBgClass}`}>
           {children}
         </div>
+
 
         {/* Android Bottom Gesture Navigation Pill */}
         {!isFullscreen && (

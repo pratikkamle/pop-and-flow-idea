@@ -46,8 +46,12 @@ data class Bubble(
     val points: Int,
     var isPopped: Boolean = false,
     var popProgress: Float = 0f,
-    var scored: Boolean = false
+    var scored: Boolean = false,
+    var scaleX: Float = 1f,
+    var scaleY: Float = 1f,
+    var wallSquish: Float = 0f
 )
+
 
 
 

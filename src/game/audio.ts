@@ -1,6 +1,7 @@
 /**
  * Procedural Web Audio synthesizer for Pop & Flow.
- * Generates tactile, organic bubble pops and gentle ambient tones without any external asset loading.
+ * Generates tactile, organic bubble pops, harmonic kalimba-like chimes, and gentle ambient drones
+ * without requiring any external audio files.
  */
 
 class SoundEngine {
@@ -8,7 +9,9 @@ class SoundEngine {
   private ambientGain: GainNode | null = null;
   private ambientOscs: OscillatorNode[] = [];
   private isAmbientRunning = false;
+  private currentVolume = 0.8;
 
+  // Gentle pentatonic chime frequencies (C5, D5, E5, G5, A5, C6, D6)
   private pentatonicFrequencies = [
     523.25, // C5
     587.33, // D5
@@ -21,7 +24,9 @@ class SoundEngine {
 
   private initContext() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AudioCtx();
     }
     if (this.ctx.state === 'suspended') {
@@ -29,82 +34,108 @@ class SoundEngine {
     }
   }
 
-  playPop(combo: number, soundEnabled: boolean, hapticEnabled: boolean) {
+  setVolume(volume: number) {
+    this.currentVolume = Math.max(0, Math.min(1, volume));
+    if (this.ambientGain && this.ctx && this.isAmbientRunning) {
+      this.ambientGain.gain.setValueAtTime(
+        0.035 * this.currentVolume,
+        this.ctx.currentTime
+      );
+    }
+  }
+
+  playPop(combo: number, soundEnabled: boolean, hapticEnabled: boolean, volume = 0.8) {
+    // 1. Pleasant subtle haptic feedback
     if (hapticEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      const duration = Math.min(18 + combo * 3, 40);
+      const duration = Math.min(14 + Math.min(combo, 10) * 1.5, 28);
       try {
-        navigator.vibrate(duration);
+        navigator.vibrate(Math.round(duration));
       } catch {
-        // ignore if blocked by browser policy
+        // Safe fallback if blocked by browser policy
       }
     }
 
-    if (!soundEnabled) return;
+    if (!soundEnabled || volume <= 0) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
 
-    // Map combo to pentatonic scale
+    // Map combo count to peaceful pentatonic scale
     const pitchIndex = (Math.max(1, combo) - 1) % this.pentatonicFrequencies.length;
     const baseFreq = this.pentatonicFrequencies[pitchIndex];
 
-    // Bubble pop sound design: sine wave with rapid pitch drop and snappy exponential gain decay
+    // Smooth rounded pop tone: sine wave with subtle rapid pitch sweep down to mimic water droplet
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(baseFreq * 1.15, now);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, now + 0.08);
+    osc.frequency.setValueAtTime(baseFreq * 1.18, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.72, now + 0.075);
 
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.35, now + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    // Warm low-pass filter so highs never sound piercing
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1400, now);
+    filter.frequency.exponentialRampToValueAtTime(700, now + 0.08);
 
-    osc.connect(gain);
+    const masterVol = Math.max(0.01, Math.min(1, volume));
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.32 * masterVol, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
+
+    osc.connect(filter);
+    filter.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.1);
+    osc.stop(now + 0.095);
   }
 
-  playBonus(soundEnabled: boolean, hapticEnabled: boolean) {
+  playBonus(soundEnabled: boolean, hapticEnabled: boolean, volume = 0.8) {
     if (hapticEnabled && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate([25, 40, 35]);
+        navigator.vibrate([16, 35, 24]);
       } catch {
-        // ignore
+        // Safe fallback
       }
     }
 
-    if (!soundEnabled) return;
+    if (!soundEnabled || volume <= 0) return;
     this.initContext();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const notes = [783.99, 987.77, 1174.66, 1318.51]; // G5, B5, D6, E6 chime
+    const masterVol = Math.max(0.01, Math.min(1, volume));
+    const notes = [783.99, 987.77, 1174.66, 1318.51]; // G5, B5, D6, E6 shimmer chord
 
     notes.forEach((freq, idx) => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      const startTime = now + idx * 0.045;
+      const filter = this.ctx.createBiquadFilter();
+      const startTime = now + idx * 0.04;
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, startTime);
 
-      gain.gain.setValueAtTime(0.001, startTime);
-      gain.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2200, startTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(0.18 * masterVol, startTime + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
 
-      osc.connect(gain);
+      osc.connect(filter);
+      filter.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.25);
+      osc.stop(startTime + 0.24);
     });
   }
 
-  setAmbientDrone(enabled: boolean) {
+  setAmbientDrone(enabled: boolean, volume = 0.8) {
+    this.currentVolume = volume;
     if (!enabled) {
       if (this.ambientGain && this.ctx) {
         this.ambientGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.8);
@@ -124,12 +155,12 @@ class SoundEngine {
 
     const masterGain = this.ctx.createGain();
     masterGain.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.04, this.ctx.currentTime + 2.0); // very soft relaxing background
+    masterGain.gain.linearRampToValueAtTime(0.035 * this.currentVolume, this.ctx.currentTime + 2.5);
     masterGain.connect(this.ctx.destination);
     this.ambientGain = masterGain;
 
-    // Frequencies for a warm, meditative pastel chord (F3, C4, E4, G4)
-    const chordFrequencies = [174.61, 261.63, 329.63, 392.00];
+    // Meditative F-Major 9 chord (F3, C4, E4, G4)
+    const chordFrequencies = [174.61, 261.63, 329.63, 392.0];
 
     chordFrequencies.forEach((freq) => {
       if (!this.ctx) return;
@@ -139,9 +170,8 @@ class SoundEngine {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-      // Low pass filter to keep it super warm and soothing
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(600, this.ctx.currentTime);
+      filter.frequency.setValueAtTime(500, this.ctx.currentTime);
 
       osc.connect(filter);
       filter.connect(masterGain);
